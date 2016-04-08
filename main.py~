@@ -119,7 +119,6 @@ def get_user_info(user_id):
 
 # get a new mc
 @app.route('/<string:user_id>', methods=['POST'])
-@auth.login_required
 def get_new_mc(user_id):
     mc_id, passwd, mc_ip = host.init_machine()
     connect_info =  'host: %s  passwd: %s  machine_ip: %s' % (host.ip, passwd, mc_ip)
@@ -132,7 +131,6 @@ def get_new_mc(user_id):
 
 # get user's mc list
 @app.route('/<string:user_id>/mcs', methods=['GET'])
-@auth.login_required
 def get_machine_list(user_id):
     a = db.session.query(VM_machine).filter(VM_machine.user==user_id).all()
     user_machines = []
@@ -147,7 +145,6 @@ def get_machine_list(user_id):
 
 # get user's a mc info
 @app.route('/<string:user_id>/<string:mc_id>', methods=['GET'])
-@auth.login_required
 def get_machine(user_id, mc_id):
     mc_info = db.session.query(VM_machine).filter(VM_machine.user==user_id and VM_machine.mc_id == mc_id).first()
     return (jsonify({'machine_info': [{"mc_id": mc_info.mc_id, "user": mc_info.user, "connect_info": mc_info.connect_info}]}))
@@ -155,7 +152,6 @@ def get_machine(user_id, mc_id):
 
 # delete user's a mc
 @app.route('/<string:user_id>/<string:mc_id>', methods=['DELECT'])
-@auth.login_required
 def delect_machine(user_id, mc_id):
     host.kill_machine(mc_id)  # kill a mc
     # delete it in the database
@@ -186,7 +182,6 @@ def get_source(src_name):
 
 # install a resource in a mc
 @app.route('/srclist/<string:user_id>/<string:src_name>', methods=['POST'])
-@auth.login_required
 def install_source(user_id, src_name):
     def filter_space(x):  # this func f(x) is used for the filter
             if x != [] and x != " ":

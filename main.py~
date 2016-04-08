@@ -70,7 +70,6 @@ class Resource(db.Model):
 
     def __repr__(self):
         return '<source_name %r>' % self.source_name
-
 ########################################################################################
 ### web app ############################################################################
 
@@ -130,71 +129,36 @@ def get_machine_list(user_id):
 # get user's a mc info
 @app.route('/<string:user_id>/<string:mc_id>', methods=['GET'])
 def get_machine(user_id, mc_id):
-    mc_info = db.session.query(VM_machine).filter(VM_machine.user==user_id and VM_machine.mc_id == mc_id).first()
-    return (jsonify({'machine_info': [{"mc_id": mc_info.mc_id, "user": mc_info.user, "connect_info": mc_info.connect_info}]}))
+    return "mc ", user_id, mc_id
 
 
 # delete user's a mc
 @app.route('/<string:user_id>/<string:mc_id>', methods=['DELECT'])
 def delect_machine(user_id, mc_id):
-    host.kill_machine(mc_id)  # kill a mc
-    # delete it in the database
-    recode = db.session.query(VM_machine).filter(VM_machine.mc_id == mc_id).first()
-    db.session.delete(recode)
-    # update user information
-    db.session.query(User).filter(User.user==user_id).update({User.num_mcs:User.num_mcs-1})
-    return (jsonify({'state': 'current'"delete '%s' successfully !" % mc_id}))
+    return user_id, mc_id
 
 
 # get resource list
 @app.route('/srclist', methods=['GET'])
 def get_source_list():
-    recodes = db.session.query(Resource).all()
-    sources_info = []
-    for i in range(len(recodes)):
-        tmp = {'source_name': recodes[i].source_name, 'detail': recodes[i].detail}
-        sources_info.append(tmp)
-    return (jsonify({'Sources Available': sources_info}))
+    return 'srclist'
 
 
 # get a resource info
-@app.route('/srclist/<string:src_name>', methods=['GET'])
-def get_source(src_name):
-    recode = db.session.query(Resource).filter(Resource.source_name==src_name).first()
-    return (jsonify({'source_info': [{'source_name': recode.source_name, 'detail': recode.detail}]}))
+@app.route('/srclist/<string:user_id>/<string:src_name>', methods=['GET'])
+def get_source():
+    return "OK"
 
 
 # install a resource in a mc
 @app.route('/srclist/<string:user_id>/<string:src_name>', methods=['POST'])
 def install_source(user_id, src_name):
-    def filter_space(x):  # this func f(x) is used for the filter
-            if x != [] and x != " ":
-                return x
-        
     form = request.form['form']
     mc = request.form['mc']
-    print(form, mc)
-    # get the shell path
-    recode = db.session.query(Resource).filter(Resource.source_name == src_name).first()
-    shell_path = recode.shell_path
-    # execute the shell
-    if form == 'cluster':
-        mc_param = mc.split(' ')
-        mc_param = [item for item in filter(filter_space, mc_param)]  # filter the [] in mc_param
-        if host.exec_shell(shell_path=shell_path, param=mc_param, state='cluster') == True: # install a cluster
-            return (jsonify({'state': "Success install"}))
-        else:
-            return (jsonify({'state': "Fail to install"}))
-    elif form == 'single_node':
-        mc_param = mc
-        print(mc_param)
-        if host.exec_shell(shell_path=shell_path, param=mc_param, state='single') == True:  # install a single node
-            return (jsonify({'state': "Success install"}))
-        else:
-            return (jsonify({'state': "Fail to install"}))
-
+    return form, mc
 
 
 if __name__ == '__main__':
     db.create_all()
     app.run()
+

@@ -9,23 +9,28 @@ this is the logic of the server
 # author: ChuXiaokai
 # date: 2016/3/24
 """
-
 from flask import Flask, request, jsonify, g, abort
 from flask.ext.httpauth import HTTPBasicAuth
 from flask.ext.sqlalchemy import SQLAlchemy
 from passlib.apps import custom_app_context as pwd_context
 import server
-
-# server point
-host = server.Server()
+host = server.Server()  # server
 auth = HTTPBasicAuth()
-
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///webappdb'
 app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
-app.config['SECRET_KEY'] = 'the quick brown fox jumps over the lazy dog'
 db = SQLAlchemy(app)
 
+### Queue ##############################################################################
+q = []  # for the second verify, to deny for: -u user1:user1.passwd http://xxx/user2
+
+def second_verify(user_id):
+    current_user = q.pop()
+    if current_user == user_id:
+        return True
+    else:
+        return False
+    
 ### database ###########################################################################
 # table User
 class User(db.Model):
@@ -42,9 +47,7 @@ class User(db.Model):
         return pwd_context.verify(password, self.password_hash)
 
     def hash_password(self, password):
-        print(1)
-        self.password_hash =  pwd_context.encrypt(password)
-        print(self.password_hash)        
+        self.password_hash =  pwd_context.encrypt(password)    
 
 
 # table VM_machine
@@ -78,18 +81,15 @@ class Resource(db.Model):
     def __repr__(self):
         return '<source_name %r>' % self.source_name
 
-########################################################################################
 ### web app ############################################################################
-
 @auth.verify_password
 def verify_password(username_or_token, password):
-    print("dddddddddddddddddddddddddddddddddddddddddddddddddd")
+    q.append(username_or_token)
     user = User.query.filter_by(user=username_or_token).first()  # find if the user exists
     if not user or not user.verify_password(password):
         return False
     g.user = user
     return True
-
 
 
 # get a new user id
@@ -113,6 +113,8 @@ def post_newuser():
 @app.route('/<string:user_id>', methods=['GET'])
 @auth.login_required
 def get_user_info(user_id):
+    if second_verify(user_id) == False:
+        abort(400)
     admin = db.session.query(User).filter(User.user==user_id).first()
     return (jsonify({'userinfo': [{'user_id':admin.user}, {'num_mcs':admin.num_mcs}]}))
 
@@ -121,6 +123,8 @@ def get_user_info(user_id):
 @app.route('/<string:user_id>', methods=['POST'])
 @auth.login_required
 def get_new_mc(user_id):
+    if second_verify(user_id) == False:
+        abort(400)
     mc_id, passwd, mc_ip = host.init_machine()
     connect_info =  'host: %s  passwd: %s  machine_ip: %s' % (host.ip, passwd, mc_ip)
     new_mc = VM_machine(mc_id, user_id, connect_info)
@@ -134,6 +138,8 @@ def get_new_mc(user_id):
 @app.route('/<string:user_id>/mcs', methods=['GET'])
 @auth.login_required
 def get_machine_list(user_id):
+    if second_verify(user_id) == False:
+        abort(400)
     a = db.session.query(VM_machine).filter(VM_machine.user==user_id).all()
     user_machines = []
     print(type(a))
@@ -149,6 +155,8 @@ def get_machine_list(user_id):
 @app.route('/<string:user_id>/<string:mc_id>', methods=['GET'])
 @auth.login_required
 def get_machine(user_id, mc_id):
+    if second_verify(user_id) == False:
+        abort(400)
     mc_info = db.session.query(VM_machine).filter(VM_machine.user==user_id and VM_machine.mc_id == mc_id).first()
     return (jsonify({'machine_info': [{"mc_id": mc_info.mc_id, "user": mc_info.user, "connect_info": mc_info.connect_info}]}))
 
@@ -157,6 +165,8 @@ def get_machine(user_id, mc_id):
 @app.route('/<string:user_id>/<string:mc_id>', methods=['DELECT'])
 @auth.login_required
 def delect_machine(user_id, mc_id):
+    if second_verify(user_id) == False:
+        abort(400)
     host.kill_machine(mc_id)  # kill a mc
     # delete it in the database
     recode = db.session.query(VM_machine).filter(VM_machine.mc_id == mc_id).first()
@@ -188,6 +198,9 @@ def get_source(src_name):
 @app.route('/srclist/<string:user_id>/<string:src_name>', methods=['POST'])
 @auth.login_required
 def install_source(user_id, src_name):
+    if second_verify(user_id) == False:
+        abort(400)
+        
     def filter_space(x):  # this func f(x) is used for the filter
             if x != [] and x != " ":
                 return x
@@ -213,7 +226,6 @@ def install_source(user_id, src_name):
             return (jsonify({'state': "Success install"}))
         else:
             return (jsonify({'state': "Fail to install"}))
-
 
 
 if __name__ == '__main__':

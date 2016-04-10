@@ -31,7 +31,7 @@ class Server(object):
 		init a docker container
 		:return: container_id, passwd='123456'
 		"""
-        os.system("docker run -it -d=true 2f3b60f8c733 /bin/bash")  # create a machine
+        os.system("docker run -it -d=true 043ece8dff9c  /bin/bash")  # create a machine
         container_id = (os.popen('docker ps -l -q')).readlines()[0].split('\n')[0]  # get the container's id
         container_ip = (os.popen('docker inspect --format="{{.NetworkSettings.IPAddress}}" %s' % container_id)).readlines()[0]
         os.system('docker exec %s service sshd start' % container_id)  # start the ssh service
@@ -70,3 +70,16 @@ class Server(object):
             else:
                 return False
 
+    def get_machine_state(self, container_id):
+        """
+        :param container_id:
+        :return: the load of a mc
+        """
+        if os.path.exists('shell/report.sh)'):
+            print("shell/report.sh is not found")
+            return False
+        else:
+            get_ret = (os.popen('bash shell/report.sh "%s"' % container_id)).readlines()
+            ret_info = {'cpu info': get_ret[0], 'disk info': get_ret[1], 'memory info': get_ret[2], 'IDLE info': get_ret[3]}
+            print(ret_info)
+            return ret_info 

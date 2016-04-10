@@ -131,7 +131,7 @@ def get_new_mc(user_id):
     db.session.add(new_mc)
     db.session.query(User).filter(User.user==user_id).update({User.num_mcs:User.num_mcs+1})
     db.session.commit()
-    return (jsonify({'mc_info': [{'mc_info': mc_id, 'ip': mc_ip, 'passwd': passwd}]}))
+    return (jsonify({'mc_info': [{'mc_id': mc_id, 'ip': mc_ip, 'passwd': passwd}]}))
 
 
 # get user's mc list
@@ -142,10 +142,7 @@ def get_machine_list(user_id):
         abort(400)
     a = db.session.query(VM_machine).filter(VM_machine.user==user_id).all()
     user_machines = []
-    print(type(a))
     for i in range(len(a)):
-        print(i)
-        print(a[i].mc_id)
         tmp = {"mc_id": a[i].mc_id, "user": a[i].user, "connect_info": a[i].connect_info}
         user_machines.append(tmp)
     return (jsonify({'user_machines': user_machines}))
@@ -158,7 +155,8 @@ def get_machine(user_id, mc_id):
     if second_verify(user_id) == False:
         abort(400)
     mc_info = db.session.query(VM_machine).filter(VM_machine.user==user_id and VM_machine.mc_id == mc_id).first()
-    return (jsonify({'machine_info': [{"mc_id": mc_info.mc_id, "user": mc_info.user, "connect_info": mc_info.connect_info}]}))
+    current_state = host.get_machine_state(mc_id) 
+    return (jsonify({'machine_info': [{"mc_id": mc_info.mc_id, "user": mc_info.user, "connect_info": mc_info.connect_info}], 'current state': [current_state]}))
 
 
 # delete user's a mc
@@ -207,7 +205,6 @@ def install_source(user_id, src_name):
         
     form = request.form['form']
     mc = request.form['mc']
-    print(form, mc)
     # get the shell path
     recode = db.session.query(Resource).filter(Resource.source_name == src_name).first()
     shell_path = recode.shell_path
@@ -221,7 +218,6 @@ def install_source(user_id, src_name):
             return (jsonify({'state': "Fail to install"}))
     elif form == 'single_node':
         mc_param = mc
-        print(mc_param)
         if host.exec_shell(shell_path=shell_path, param=mc_param, state='single') == True:  # install a single node
             return (jsonify({'state': "Success install"}))
         else:
